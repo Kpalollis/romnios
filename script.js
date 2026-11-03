@@ -23,20 +23,45 @@
 
     const quoteForm = document.querySelector('#quote-form');
     if (quoteForm) {
-      quoteForm.addEventListener('submit', (event) => {
+      quoteForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        const details = [
-          `Ονοματεπώνυμο: ${formData.get('name')}`,
-          `Τηλέφωνο: ${formData.get('phone')}`,
-          `Ώρα επικοινωνίας: ${formData.get('callback-time')}`,
-          `Ενδιαφέρομαι για: ${formData.get('space')}`,
-          `Περιοχή: ${formData.get('area') || 'Δεν αναφέρθηκε'}`,
-          `Πληροφορίες: ${formData.get('details') || 'Δεν αναφέρθηκαν'}`
-        ].join('\n');
-        const subject = encodeURIComponent('Αίτημα προσφοράς για λύση σκίασης');
-        window.location.href = `mailto:${BUSINESS_EMAIL}?subject=${subject}&body=${encodeURIComponent(details)}`;
-        document.querySelector('#form-status').textContent = 'Ανοίγει έτοιμο email. Πατήστε Αποστολή για να καταχωρηθεί το αίτημα επιστροφής κλήσης.';
+        const status = document.querySelector('#form-status');
+        const submitButton = quoteForm.querySelector('button[type="submit"]');
+
+        if (!BUSINESS_EMAIL) {
+          status.textContent = 'Η φόρμα δεν είναι ακόμη ενεργή. Θα προστεθεί το email της επιχείρησης.';
+          status.classList.add('is-error');
+          return;
+        }
+
+        const formData = new FormData(quoteForm);
+        formData.set('_subject', 'Νέο αίτημα προσφοράς | ΡΩΜΝΙΟΣ');
+        formData.set('_template', 'table');
+        status.classList.remove('is-error', 'is-success');
+        status.textContent = 'Αποστολή αιτήματος...';
+        submitButton.disabled = true;
+
+        try {
+          const response = await fetch(`https://formsubmit.co/ajax/${BUSINESS_EMAIL}`, {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+            body: formData
+          });
+          const result = await response.json();
+
+          if (!response.ok || result.success === false || result.success === 'false') {
+            throw new Error('Form submission failed');
+          }
+
+          quoteForm.reset();
+          status.textContent = 'Ευχαριστούμε! Λάβαμε το αίτημά σας και θα επικοινωνήσουμε μαζί σας.';
+          status.classList.add('is-success');
+        } catch {
+          status.textContent = 'Δεν στάλθηκε το αίτημα. Δοκιμάστε ξανά σε λίγο.';
+          status.classList.add('is-error');
+        } finally {
+          submitButton.disabled = false;
+        }
       });
     }
 
